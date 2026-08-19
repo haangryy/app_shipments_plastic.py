@@ -38,13 +38,32 @@ def clean_str(val):
   return " ".join(val.split())
 
 
-# Chuẩn hóa Mã Số Thuế (Xóa .0 ở cuối nếu bị pandas đọc thành float, xóa khoảng trắng)
+# HÀM BÓC TÁCH DẤU NHÁY VÀ LÀM SẠCH MST TUYỆT ĐỐI
 def clean_tax_code(val):
   if pd.isna(val):
     return ""
   val_str = str(val).strip()
+
+  # Bóc sạch các dạng dấu nháy ở đầu/cuối
+  val_str = (
+      val_str.lstrip("'")
+      .rstrip("'")
+      .lstrip("’")
+      .rstrip("’")
+      .lstrip('"')
+      .rstrip('"')
+  )
+
+  # Bỏ đuôi .0 nếu dính float
   if val_str.endswith(".0"):
     val_str = val_str[:-2]
+
+  val_str = val_str.strip()
+
+  # Bổ sung số 0 ở đầu nếu MST doanh nghiệp 10 số bị rớt mất số 0
+  if len(val_str) == 9 and val_str.isdigit():
+    val_str = "0" + val_str
+
   return val_str
 
 
@@ -143,7 +162,7 @@ if file_curr and file_info:
       col_industry = col_ind_manual
 
     else:
-      # LÀM SẠCH CHUẨN HÓA MÃ SỐ THUẾ DÙNG CHUNG HÀM CLEAN_TAX_CODE
+      # LÀM SẠCH CHUẨN HÓA MÃ SỐ THUẾ CỦA CẢ 2 FILE
       df_curr_raw = df_curr_raw.dropna(subset=[col_tax])
       df_curr_raw[col_tax] = df_curr_raw[col_tax].apply(clean_tax_code)
 
@@ -153,7 +172,7 @@ if file_curr and file_info:
       # Chuẩn hóa cột Ngành nghề sang Unicode NFC
       df_info[col_industry] = df_info[col_industry].apply(clean_str)
 
-      # Giữ lại các cột cần thiết từ B/L
+      # Giữ các cột cần thiết từ B/L
       cols_to_keep = [col_tax]
       if col_shipper in df_curr_raw.columns:
         cols_to_keep.append(col_shipper)
@@ -172,7 +191,7 @@ if file_curr and file_info:
           df_curr_clean, df_info_clean, on=col_tax, how="inner"
       )
 
-      # Chuẩn hóa từ khóa tìm kiếm sang Unicode NFC
+      # Lọc theo từ khóa ngành nghề
       kw = clean_str(keyword_input).lower()
 
       if kw:
@@ -186,7 +205,7 @@ if file_curr and file_info:
       else:
         final_df = merged_df
 
-      # --- PHẦN BÁO CÁO THỐNG KÊ (DEBUG VIEW) ---
+      # --- PHẦN BÁO CÁO THỐNG KÊ ---
       st.subheader(
           f"🔍 Tìm thấy {len(final_df)} Shipper khớp điều kiện"
       )
@@ -208,7 +227,6 @@ if file_curr and file_info:
             " xuất hiện trong dữ liệu B/L tháng này."
         )
 
-        # KHU VỰC SOI LỖI KHI BÁO CÁO TRỐNG
         with st.expander("🛠️ Nhấp vào đây để soi vị trí đứt gãy dữ liệu (Debug)"):
           st.write(
               f"1. Số lượng MST đọc được từ File B/L:"
@@ -222,8 +240,8 @@ if file_curr and file_info:
               f"3. Số MST trong File B/L KHỚP ĐƯỢC với File Master Data:"
               f" **{len(merged_df)}**"
           )
-          st.write("4. Mẫu 5 dòng Ngành nghề KD trong Master Data:")
-          st.dataframe(df_info_clean[[col_tax, col_industry]].head(5))
+          st.write("4. Mẫu 5 dòng Mã số thuế sau khi dọn sạch dấu nháy:")
+          st.dataframe(df_curr_clean[[col_tax]].head(5))
 
   except Exception as e:
     st.error(f"Xảy ra lỗi khi xử lý dữ liệu: {e}")
