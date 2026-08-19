@@ -6,7 +6,7 @@ import streamlit as st
 st.set_page_config(
     page_title="Lọc Shipper Theo Ngành Có XNK Tháng Này", layout="wide"
 )
-st.title("📦 Danh Sách Shipper Ngành Nhựa Có Phát Sinh XNK Tháng Này")
+st.title("📦 Danh Sách Shipper Theo Ngành Có Phát Sinh XNK Tháng Này")
 
 # --- 1. UPLOAD FILE ---
 st.sidebar.header("1. Tải lên dữ liệu")
