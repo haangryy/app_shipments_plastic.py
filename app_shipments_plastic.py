@@ -38,13 +38,12 @@ def clean_str(val):
   return " ".join(val.split())
 
 
-# HÀM BÓC TÁCH DẤU NHÁY VÀ LÀM SẠCH MST TUYỆT ĐỐI
+# Hàm chuẩn hóa MST, bóc sạch dấu nháy ' hoặc "
 def clean_tax_code(val):
   if pd.isna(val):
     return ""
   val_str = str(val).strip()
 
-  # Bóc sạch các dạng dấu nháy ở đầu/cuối
   val_str = (
       val_str.lstrip("'")
       .rstrip("'")
@@ -54,13 +53,11 @@ def clean_tax_code(val):
       .rstrip('"')
   )
 
-  # Bỏ đuôi .0 nếu dính float
   if val_str.endswith(".0"):
     val_str = val_str[:-2]
 
   val_str = val_str.strip()
 
-  # Bổ sung số 0 ở đầu nếu MST doanh nghiệp 10 số bị rớt mất số 0
   if len(val_str) == 9 and val_str.isdigit():
     val_str = "0" + val_str
 
@@ -169,29 +166,38 @@ if file_curr and file_info:
       df_info = df_info.dropna(subset=[col_tax])
       df_info[col_tax] = df_info[col_tax].apply(clean_tax_code)
 
-      # Chuẩn hóa cột Ngành nghề sang Unicode NFC
       df_info[col_industry] = df_info[col_industry].apply(clean_str)
 
-      # Giữ các cột cần thiết từ B/L
-      cols_to_keep = [col_tax]
-      if col_shipper in df_curr_raw.columns:
-        cols_to_keep.append(col_shipper)
-      if col_agent in df_curr_raw.columns:
-        cols_to_keep.append(col_agent)
-      if "Loại hình / Cảng" in df_curr_raw.columns:
-        cols_to_keep.append("Loại hình / Cảng")
+      # --- CÁCH 2: GOM NHÓM DỮ LIỆU B/L THÁNG NÀY THEO MST ---
+      # Giúp hiển thị 1 dòng/Shipper, tự gom tất cả các Luồng/Cảng và Agent tương ứng
+      agg_dict = {}
 
-      df_curr_clean = df_curr_raw[cols_to_keep].drop_duplicates(subset=[col_tax])
+      if col_shipper in df_curr_raw.columns:
+        agg_dict[col_shipper] = "first"
+      if col_agent in df_curr_raw.columns:
+        agg_dict[col_agent] = lambda x: ", ".join(
+            sorted(set(str(v).strip() for v in x if pd.notna(v) and str(v).strip()))
+        )
+      if "Loại hình / Cảng" in df_curr_raw.columns:
+        agg_dict["Loại hình / Cảng"] = lambda x: ", ".join(
+            sorted(set(str(v).strip() for v in x if pd.notna(v) and str(v).strip()))
+        )
+
+      df_curr_clean = (
+          df_curr_raw.groupby(col_tax, as_index=False).agg(agg_dict)
+      )
+
+      # Chuẩn hóa File Master Data (mỗi MST 1 dòng ngành nghề)
       df_info_clean = df_info[[col_tax, col_industry]].drop_duplicates(
           subset=[col_tax]
       )
 
-      # Merge ghép bảng
+      # Merge ghép 2 bảng
       merged_df = pd.merge(
           df_curr_clean, df_info_clean, on=col_tax, how="inner"
       )
 
-      # Lọc theo từ khóa ngành nghề
+      # Lọc theo keyword ngành nghề
       kw = clean_str(keyword_input).lower()
 
       if kw:
@@ -205,7 +211,7 @@ if file_curr and file_info:
       else:
         final_df = merged_df
 
-      # --- PHẦN BÁO CÁO THỐNG KÊ ---
+      # Hiển thị kết quả
       st.subheader(
           f"🔍 Tìm thấy {len(final_df)} Shipper khớp điều kiện"
       )
