@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="Lọc Shipper Ngành Nhựa Có XNK Tháng Này", layout="wide"
+    page_title="Lọc Shipper Theo Ngành Có XNK Tháng Này", layout="wide"
 )
 st.title("📦 Danh Sách Shipper Ngành Nhựa Có Phát Sinh XNK Tháng Này")
 
